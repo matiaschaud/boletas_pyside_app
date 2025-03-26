@@ -297,6 +297,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         export_folder_name = "Data exports"
         os.makedirs(f"{self.folder_path}/{export_folder_name}", exist_ok=True)
 
+        float_fields = ["total_honorarios", "impuesto_retenido", "neto_honorarios"]
+
+        for field in float_fields:
+            boletas_report[field] = boletas_report[field].astype(float)
+
         boletas_report.to_csv(
             f"{self.folder_path}/{export_folder_name}/boletas_report_{datetime_now}.csv"
         )
