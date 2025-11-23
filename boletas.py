@@ -19,6 +19,7 @@ import pandas as pd
 from pathlib import Path
 import re
 import os
+import shutil
 
 
 def extraer_numeros(cadena):
@@ -87,6 +88,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.folder_path = ""
         self.rut_empleador = ""
         self.event_date = ""
+
+        # Setea por defecto el rut más comunmente usado
+        self.rutEmpleadorEditText.setText("776017809")
 
         # Configura el modelo de la lista
         self.modelListView = QStandardItemModel()
@@ -168,10 +172,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_pdf_names(self):
 
         items = self.listar_archivos_pdf()
+        boletas_repetidas = []
         for item in items:
             pdf_path = f"{self.folder_path}/{item}"
             boleta = self.get_boleta_info(pdf_path)
-            os.rename(pdf_path, f"{self.folder_path}/{boleta['nombre']}.pdf")
+            try:
+                os.rename(pdf_path, f"{self.folder_path}/{boleta['nombre']}.pdf")
+            except FileExistsError:
+                boletas_repetidas.append(pdf_path)
+
+        if boletas_repetidas:
+            print(boletas_repetidas)
+            export_folder = f"{self.folder_path}/boletas_repetidas"
+
+            os.makedirs(f"{export_folder}", exist_ok=True)
+
+            for boleta_repetida in boletas_repetidas:
+                shutil.copy2(
+                    boleta_repetida,
+                    export_folder + f'/{boleta_repetida.split("/")[-1]}',
+                )
+                os.remove(boleta_repetida)
+            mensaje = QMessageBox()
+            mensaje.setIcon(QMessageBox.Information)
+            mensaje.setText(
+                f"Algunas boletas estaban repetidas, se copiaron a la carpeta 'boletas_repetidas'"
+            )
+            mensaje.setWindowTitle("Alerta")
+            mensaje.setStandardButtons(QMessageBox.Ok)
+            mensaje.exec()
 
         self._cargar_pdfs_en_listview(items)
 
@@ -225,7 +254,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 inicio_atencion_profesional = i + 1
                 continue
 
-            if txt.startswith("Total Honorarios $:"):
+            if txt.startswith("Total Honorarios:"):
                 final_atencion_profesional = i - 1
                 boleta["total_honorarios"] = boleta_txt[i + 1]
                 continue
@@ -285,6 +314,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             boletas.append(boleta)
 
         boletas_report = pd.DataFrame(boletas)
+        fields_order = [
+            "rut_empleado",
+            "nombre",
+            "nro_boleta",
+            "fecha_evento",
+            "rut_empleador",
+            "total_honorarios",
+            "impuesto_retenido",
+            "neto_honorarios",
+            "atencion_profesional",
+            "rut_emplaedor_check",
+            "fecha_evento_check",
+        ]
         datetime_now = (
             str(datetime.now())
             .split(".")[0]
@@ -302,10 +344,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for field in float_fields:
             boletas_report[field] = boletas_report[field].astype(float)
 
-        boletas_report.to_csv(
+        boletas_report[fields_order].to_csv(
             f"{self.folder_path}/{export_folder_name}/boletas_report_{datetime_now}.csv"
         )
-        boletas_report.to_excel(
+        boletas_report[fields_order].to_excel(
             f"{self.folder_path}/{export_folder_name}/boletas_report_{datetime_now}.xlsx"
         )
 
