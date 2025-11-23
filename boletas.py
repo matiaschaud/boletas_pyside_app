@@ -86,7 +86,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
 
         self.folder_path = ""
-        self.rut_empleador = ""
+        self.rut_empleador = "776017809"
         self.event_date = ""
 
         # Setea por defecto el rut más comunmente usado
